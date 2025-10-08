@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "基于设备端文本转语音的语音辅助天气应用"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "基于设备端文本转语音的语音辅助天气应用"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "本地语音合成"
+    }
+  ]
+}

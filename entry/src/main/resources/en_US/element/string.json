@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Voice Assisted Weather App using on-device TTS"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Voice Assisted Weather App using on-device TTS"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "TTS"
+    }
+  ]
+}
