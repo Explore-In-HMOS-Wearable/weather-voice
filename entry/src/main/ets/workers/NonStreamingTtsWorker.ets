@@ -74,18 +74,18 @@ function initTts(context: Context): OfflineTts {
 
   let modelDir = '';
 
-  // for VITS begin
+  // VITS begin
   let modelName = '';
-  // for VITS end
+  // VITS end
 
-  // for Matcha begin
+  // Matcha begin
   let acousticModelName = '';
   let vocoder = '';
-  // for Matcha end
+  // Matcha end
 
-  // for Kokoro begin
+  // Kokoro begin
   let voices = '';
-  // for Kokoro end
+  // Kokoro end
 
   let ruleFsts = '';
   let ruleFars = '';
@@ -233,7 +233,6 @@ function callback(data: TtsCallbackData): number {
  */
 workerPort.onmessage = (e: MessageEvents) => {
     const msgType = e.data.msgType as string;
-  console.log(`msg-type: ${msgType}`);
   if (msgType === 'init-tts' && !tts) {
     const context = e.data.context as Context;
     tts = initTts(context);
@@ -251,7 +250,6 @@ workerPort.onmessage = (e: MessageEvents) => {
 
   if (msgType === 'tts-generate') {
     const text = e.data.text as string;
-    console.log(`recevied text ${text}`);
     const input: TtsInput = new TtsInput();
     input.text = text;
     input.sid = e.data.sid as number;
@@ -261,8 +259,6 @@ workerPort.onmessage = (e: MessageEvents) => {
     cancelled = false;
     if (true) {
       tts.generateAsync(input).then((ttsOutput: TtsOutput) => {
-        console.log(`sampleRate: ${ttsOutput.sampleRate}`);
-
         workerPort.postMessage({
           'msgType': 'tts-generate-done', samples: Float32Array.from(ttsOutput.samples),
         });

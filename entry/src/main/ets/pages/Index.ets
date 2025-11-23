@@ -100,7 +100,7 @@ struct Index {
         }
       }
     };
-    this.workerInstance.postMessage({msgType: 'init-tts', context: getContext()});
+    this.workerInstance.postMessage({msgType: 'init-tts', context: this.getUIContext().getHostContext()});
   }
 
   private generateWeatherSpeech(): void {
