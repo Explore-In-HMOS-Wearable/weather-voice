@@ -19,7 +19,7 @@ function mkdir(context: Context, parts: string[]) {
   const sandboxPath: string = context.getApplicationContext().filesDir;
   let d = sandboxPath
   for (const p of parts) {
-    d = d + '/' + p;
+    d = `${d}/${p}`;
 
     if (fs.accessSync(d)) {
       continue;
@@ -46,7 +46,7 @@ function copyRawFileToSandbox(context: Context, src: string,
   dst: string) {
   let uint8Array: Uint8Array = context.resourceManager.getRawFileContentSync(src);
   let sandboxPath: string = context.getApplicationContext().filesDir;
-  let filepath = sandboxPath + '/' + dst;
+  let filepath = `${sandboxPath}/${dst}`;
 
   if (fs.accessSync(filepath)) {
     /* if the destination exists and has the expected file size
@@ -113,22 +113,22 @@ function initTts(context: Context): OfflineTts {
   }
 
   if (modelName !== '') {
-    modelName = modelDir + '/' + modelName;
+    modelName = `${modelDir}/${modelName}`;
   }
 
   if (acousticModelName !== '') {
-    acousticModelName = modelDir + '/' + acousticModelName;
+    acousticModelName = `${modelDir}/${acousticModelName}`;
   }
 
   if (voices !== '') {
-    voices = modelDir + '/' + voices;
+    voices = `${modelDir}/${voices}`;
   }
 
   if (ruleFsts !== '') {
     let fsts = ruleFsts.split(',')
     let tmp: string[] = [];
     for (const f of fsts) {
-      tmp.push(modelDir + '/' + f);
+      tmp.push(`${modelDir}/${f}`);
     }
     ruleFsts = tmp.join(',');
   }
@@ -137,7 +137,7 @@ function initTts(context: Context): OfflineTts {
     let fars = ruleFars.split(',')
     let tmp: string[] = [];
     for (const f of fars) {
-      tmp.push(modelDir + '/' + f);
+      tmp.push(`${modelDir}/${f}`);
     }
     ruleFars = tmp.join(',');
   }
@@ -146,26 +146,26 @@ function initTts(context: Context): OfflineTts {
     let v = lexicon.split(',')
     let tmp: string[] = [];
     for (const f of v) {
-      tmp.push(modelDir + '/' + f);
+      tmp.push(`${modelDir}/${f}`);
     }
     lexicon = tmp.join(',');
   } else if (lexicon !== '') {
-    lexicon = modelDir + '/' + lexicon;
+    lexicon = `${modelDir}/${lexicon}`;
   }
 
   if (dataDir !== '') {
-    copyRawFileDirToSandbox(context, modelDir + '/' + dataDir)
+    copyRawFileDirToSandbox(context, `${modelDir}/${dataDir}`)
     let sandboxPath: string = context.getApplicationContext().filesDir;
-    dataDir = sandboxPath + '/' + modelDir + '/' + dataDir;
+    dataDir = `${sandboxPath}/${modelDir}/${dataDir}`;
   }
 
   if (dictDir !== '') {
-    copyRawFileDirToSandbox(context, modelDir + '/' + dictDir)
+    copyRawFileDirToSandbox(context, `${modelDir}/${dictDir}`)
     let sandboxPath: string = context.getApplicationContext().filesDir;
-    dictDir = sandboxPath + '/' + modelDir + '/' + dictDir;
+    dictDir = `${sandboxPath}/${modelDir}/${dictDir}`;
   }
 
-  const tokens = modelDir + '/tokens.txt';
+  const tokens = `${modelDir}/tokens.txt`;
 
   const config: OfflineTtsConfig = new OfflineTtsConfig();
   if (voices !== '') {
@@ -215,15 +215,19 @@ interface TtsCallbackData {
   progress: number;
 }
 
-function callback(data: TtsCallbackData): number {
-  workerPort.postMessage({
-    'msgType': 'tts-generate-partial', samples: Float32Array.from(data.samples), progress: data.progress,
-  });
+function createCallback(port: ThreadWorkerGlobalScope, isCancelled: ()=> boolean): (data: TtsCallbackData)=> number {
+  return (data: TtsCallbackData) : number => {
+    port.postMessage({
+      'msgType': 'tts-generate-partial', samples: Float32Array.from(data.samples), progress: data.progress
+    });
 
-  // 0 means to stop generating in C++
-  // 1 means to continue generating in C++
-  return cancelled ? 0 : 1;
+    // 0 means to stop generating in C++
+    // 1 means to continue generating in C++
+    return isCancelled() ? 0 : 1;
+  };
 }
+
+const callback = createCallback(workerPort, () => cancelled);
 
 /**
  * Defines the event handler to be called when the worker thread receives a message sent by the host thread.
@@ -240,7 +244,7 @@ workerPort.onmessage = (e: MessageEvents) => {
       'msgType': 'init-tts-done',
       sampleRate: tts.sampleRate,
       numSpeakers: tts.numSpeakers,
-      numThreads: tts.config.model.numThreads,
+      numThreads: tts.config.model.numThreads
     });
   }
 
@@ -260,15 +264,12 @@ workerPort.onmessage = (e: MessageEvents) => {
     if (true) {
       tts.generateAsync(input).then((ttsOutput: TtsOutput) => {
         workerPort.postMessage({
-          'msgType': 'tts-generate-done', samples: Float32Array.from(ttsOutput.samples),
+          'msgType': 'tts-generate-done', samples: Float32Array.from(ttsOutput.samples)
         });
 
       });
     } else {
-      const ttsOutput: TtsOutput = tts.generate(input);
-      workerPort.postMessage({
-        'msgType': 'tts-generate-done', samples: Float32Array.from(ttsOutput.samples),
-      });
+      // Skip
     }
 
 

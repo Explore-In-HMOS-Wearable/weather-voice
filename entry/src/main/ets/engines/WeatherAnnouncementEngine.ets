@@ -65,21 +65,21 @@ class GreetingGenerator {
     'Morning!',
     'Hello There!',
     'Good day to you!',
-    'Rise and Shine!',
+    'Rise and Shine!'
   ];
   private readonly afternoonGreetings = [
     'Good Afternoon!',
     'Afternoon!',
     'Hello!',
     'Good day!',
-    'How\'s your day going?',
+    'How\'s your day going?'
   ];
   private readonly eveningGreetings = [
     'Good Evening!',
     'Evening!',
     'Hope you had a good day!',
     'Hello there!',
-    'End of day weather check!',
+    'End of day weather check!'
   ];
 
   getTimeBasedGreeting(): string {
@@ -104,44 +104,44 @@ class WeatherDescriptor {
       'It\'s bright and sunny.',
       'Beautiful sunny weather today.',
       'Sunshine all around!',
-      'Perfect sunny conditions.',
+      'Perfect sunny conditions.'
     ]],
     [WeatherCondition.PARTY_CLOUDY, [
       'Partly cloudy skies today.',
       'Mix of sun and clouds.',
       'Some clouds, but still nice.',
-      'Partly cloudy conditions.',
+      'Partly cloudy conditions.'
     ]],
     [WeatherCondition.CLOUDY, [
       'It\'s cloudy outside.',
       'Overcast skies today.',
       'Gray skies overhead.',
-      'Cloudy conditions.',
+      'Cloudy conditions.'
     ]],
     [WeatherCondition.RAINY, [
       'Rain is in the forecast.',
       'It\'s raining outside.',
       'Rainy weather ahead.',
-      'Wet conditions today.',
+      'Wet conditions today.'
     ]],
     [WeatherCondition.STORMY, [
       'Storms are expected.',
       'Thunderstorms in the area.',
       'Stormy skies ahead.',
-      'Stormy weather conditions.',
+      'Stormy weather conditions.'
     ]],
     [WeatherCondition.SNOWY, [
       'Snow is falling.',
       'Snowy conditions outside.',
       'Winter weather alert.',
-      'Snow in the forecast.',
+      'Snow in the forecast.'
     ]],
     [WeatherCondition.FOGGY, [
       'Rain is in the forecast.',
       'It\'s raining outside.',
       'Rainy weather ahead.',
-      'Wet conditions today.',
-    ]],
+      'Wet conditions today.'
+    ]]
   ]);
 
   describe(current: CurrentWeather): string {

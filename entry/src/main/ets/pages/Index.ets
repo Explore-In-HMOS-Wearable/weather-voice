@@ -1,13 +1,21 @@
 import { CircularBuffer } from 'sherpa_onnx';
 import worker, { MessageEvents } from '@ohos.worker';
 import { audio } from '@kit.AudioKit';
-import systemTime from '@ohos.systemTime';
 import { ArcList, ArcListItem, ArcListAttribute, LengthMetrics } from '@kit.ArkUI';
-import { DailyForecast, WeatherData } from '../models/WeatherData';
+import { WeatherData } from '../models/WeatherData';
 import { SimpleWeatherDataService } from '../services/SimpleWeatherDataService';
 import { WeatherTextSpeechService } from '../services/WeatherSpeechTextService';
-import { WeatherColors, WeatherFonts, WeatherLayout } from 'common';
 import { getWeatherConditionDisplayName, WeatherCondition } from '../models/WeatherCondition';
+import { WeatherColors, WeatherFonts, WeatherLayout } from '../constants/UIConstants';
+import { LoadingView } from '../components/LoadingView';
+import { WeatherUtils } from '../utils/WeatherConstants';
+import { DailyForecastCard } from '../components/DailyForecastCard';
+
+interface WordEntry {
+  id: string;
+  word: string;
+  position: number;
+}
 
 @Entry
 @Component
@@ -15,27 +23,208 @@ struct Index {
   @State weatherData: WeatherData | null = null;
   @State isLoading: boolean = true;
   @State weatherAnnouncement: string = '';
-
   //TTS related states
-  @State isGenerating: boolean = false;
-  @State initTtsDone: boolean = false;
-  @State speechProgress: number = 0; //For text highlighting, 0-1
-  @State audioPlaybackProgress: number = 0; //For audio playback, 0-1
-  @State currentWordIndex: number = 0; //Current word being spoken in tts
-  @State isPlayingAudio: boolean = false;
-
+  isGenerating: boolean = false;
+  initTtsDone: boolean = false;
+  speechProgress: number = 0; //For text highlighting, 0-1
+  audioPlaybackProgress: number = 0; //For audio playback, 0-1
+  currentWordIndex: number = 0; //Current word being spoken in tts
+  isPlayingAudio: boolean = false;
   //TTS related private properties
   private totalSamples: number = 0;
   private playedSamples: number = 0;
   private words: string[] = [];
+  private wordEntries: WordEntry[] = [];
+  private wordIdCounter: number = 0;
   private workerInstance?: worker.ThreadWorker;
   private readonly scriptUrl: string = 'entry/ets/workers/NonStreamingTtsWorker.ets';
   private sampleBuffer: CircularBuffer = new CircularBuffer(16000 * 5);
   private audioRenderer: audio.AudioRenderer | null = null;
   private sampleRate: number = 0;
 
+  private nextWordId(): string {
+    const id = `word-${this.wordIdCounter}`;
+    this.wordIdCounter += 1;
+    return id;
+  }
+
   aboutToAppear(): void {
     this.loadWeatherData();
+  }
+
+  build() {
+    Column() {
+      if (this.isLoading) {
+        LoadingView()
+      } else {
+        this.WeatherView()
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(WeatherColors.BACKGROUND)
+  }
+
+  @Builder
+  WeatherView() {
+    ArcList() {
+      ArcListItem() {
+        this.WeatherAnnouncementCard()
+      }
+
+      ArcListItem() {
+        this.CurrentWeatherCard()
+      }
+
+      ArcListItem() {
+        DailyForecastCard()
+      }
+    }
+    .space(LengthMetrics.px(8))
+    .focusable(true)
+    .focusOnTouch(true)
+    .defaultFocus(true)
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  WeatherAnnouncementCard() {
+    Column({ space: 12 }) {
+      Row({ space: 8 }) {
+        Image($r('app.media.speak'))
+          .width(20)
+          .height(20)
+          .fillColor(WeatherColors.TEXT_PRIMARY)
+
+        Text('Weather Voice')
+          .fontSize(WeatherFonts.TITLE)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(WeatherColors.TEXT_PRIMARY)
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Start)
+
+      this.AnimatedTextHighlight()
+    }
+    .width('100%')
+    .padding(WeatherLayout.CARD_PADDING)
+    .backgroundColor(WeatherColors.CARD)
+    .borderRadius(WeatherLayout.BORDER_RADIUS)
+    .alignItems(HorizontalAlign.Start)
+    .justifyContent(FlexAlign.Start)
+  }
+
+  @Builder
+  AnimatedTextHighlight() {
+    if (this.words.length > 0) {
+      Text() {
+        ForEach(this.wordEntries, (entry: WordEntry) => {
+          Span(`${entry.word} `)
+            .fontColor(entry.position < this.currentWordIndex ? '#ffffd700' : '#ff808080')
+            .animation({
+              duration: 150,
+              curve: Curve.EaseOut
+            })
+        }, (entry: WordEntry) => entry.id)
+      }
+      .fontSize(WeatherFonts.BODY)
+      .textAlign(TextAlign.Start)
+      .width('100%')
+      .lineHeight(20)
+      .maxLines(8)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
+    } else {
+      Text(this.weatherAnnouncement || 'Loading...')
+        .fontSize(WeatherFonts.BODY)
+        .fontColor(WeatherColors.TEXT_SECONDARY)
+        .textAlign(TextAlign.Start)
+        .width('100%')
+        .lineHeight(20)
+        .maxLines(8)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+  }
+
+  @Builder
+  CurrentWeatherCard() {
+    Column({ space: 8 }) {
+      Text(`${this.weatherData?.location?.city || 'Unknown'}, ${this.weatherData?.location?.region || 'Unknown'}`)
+        .fontSize(WeatherFonts.CAPTION)
+        .fontColor(WeatherColors.TEXT_SECONDARY)
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .margin({ bottom: 4 })
+
+      Text(`${this.weatherData?.current?.temperature || '--'}°C`)
+        .fontSize(WeatherFonts.TEMPERATURE)
+        .fontColor(WeatherColors.TEXT_PRIMARY)
+        .fontWeight(FontWeight.Bold)
+        .textAlign(TextAlign.Center)
+
+      Row({ space: 8 }) {
+        Image(WeatherUtils.getWeatherIcon(this.weatherData?.current?.condition))
+          .width(20)
+          .height(20)
+          .fillColor(WeatherColors.TEXT_PRIMARY)
+
+        Text(getWeatherConditionDisplayName(this.weatherData?.current?.condition || WeatherCondition.PARTY_CLOUDY))
+          .fontSize(WeatherFonts.TITLE)
+          .fontColor(WeatherColors.TEXT_SECONDARY)
+      }
+      .justifyContent(FlexAlign.Center)
+
+      if (this.weatherData?.current?.feelsLike &&
+        Math.abs(this.weatherData?.current?.temperature - this.weatherData?.current?.feelsLike) > 2) {
+        Text(`Feels like ${this.weatherData?.current?.feelsLike}°C`)
+          .fontSize(WeatherFonts.CAPTION)
+          .fontColor(WeatherColors.TEXT_SECONDARY)
+      }
+
+      Row({ space: 16 }) {
+        Column({ space: 4 }) {
+          Image($r('app.media.humidity'))
+            .width(16)
+            .height(16)
+            .fillColor(WeatherColors.TEXT_PRIMARY)
+
+          Text(`${this.weatherData?.current?.humidity || 0}%`)
+            .fontSize(WeatherFonts.CAPTION)
+            .fontColor(WeatherColors.TEXT_SECONDARY)
+        }
+        .margin({ right: 8 })
+
+        Column({ space: 4 }) {
+          Image($r('app.media.wind'))
+            .width(16)
+            .height(16)
+            .fillColor(WeatherColors.TEXT_PRIMARY)
+
+          Text(`${this.weatherData?.current?.windSpeed || 0} km/h`)
+            .fontSize(WeatherFonts.CAPTION)
+            .fontColor(WeatherColors.TEXT_SECONDARY)
+        }
+        .margin({ right: 8 })
+
+        Column({ space: 4 }) {
+          Image($r('app.media.uv_index'))
+            .width(16)
+            .height(16)
+            .fillColor(WeatherColors.TEXT_PRIMARY)
+
+          Text(`${this.weatherData?.current?.uvIndex || 0}`)
+            .fontSize(WeatherFonts.CAPTION)
+            .fontColor(WeatherColors.TEXT_SECONDARY)
+        }
+      }
+      .justifyContent(FlexAlign.SpaceEvenly)
+      .margin({ top: 12 })
+    }
+    .width('100%')
+    .padding(WeatherLayout.CARD_PADDING)
+    .backgroundColor(WeatherColors.CARD)
+    .borderRadius(WeatherLayout.BORDER_RADIUS)
+    .justifyContent(FlexAlign.Center)
   }
 
   private async loadWeatherData(): Promise<void> {
@@ -49,6 +238,12 @@ struct Index {
 
         //Split into words for highlighting later when running the audio
         this.words = this.weatherAnnouncement.split(' ').filter(word => word.trim() !== '');
+        this.wordIdCounter = 0;
+        this.wordEntries = [];
+        for (let i = 0; i < this.words.length; i++) {
+          const entry: WordEntry = {id: this.nextWordId(), word: this.words[i], position: i};
+          this.wordEntries.push(entry);
+        }
 
         //Initialize TTS
         this.initTtsWorker();
@@ -64,7 +259,7 @@ struct Index {
       name: 'WeatherVoice TTS Worker'
     });
 
-    this.workerInstance.onmessage = (e:MessageEvents) => {
+    this.workerInstance.onmessage = (e: MessageEvents) => {
       const msgType = e.data.msgType as string;
 
       if (msgType === 'init-tts-done') {
@@ -94,13 +289,13 @@ struct Index {
         this.totalSamples = samples.length;
         this.playedSamples = 0;
 
-        if(this.audioRenderer && this.audioRenderer.state !== audio.AudioState.STATE_RUNNING) {
+        if (this.audioRenderer && this.audioRenderer.state !== audio.AudioState.STATE_RUNNING) {
           this.isPlayingAudio = true;
           this.audioRenderer.start();
         }
       }
     };
-    this.workerInstance.postMessage({msgType: 'init-tts', context: this.getUIContext().getHostContext()});
+    this.workerInstance.postMessage({ msgType: 'init-tts', context: this.getUIContext().getHostContext() });
   }
 
   private generateWeatherSpeech(): void {
@@ -115,20 +310,18 @@ struct Index {
     this.totalSamples = 0;
     this.playedSamples = 0;
 
-    systemTime.getRealTime((err) => {
-      if(!err && this.workerInstance) {
-        this.workerInstance.postMessage({
-          msgType: 'tts-generate',
-          text: this.weatherAnnouncement,
-          sid: 0,
-          speed: 1.0,
-        });
-      }
-    });
+    if (this.workerInstance) {
+      this.workerInstance.postMessage({
+        msgType: 'tts-generate',
+        text: this.weatherAnnouncement,
+        sid: 0,
+        speed: 1.0
+      });
+    }
   }
 
   private setupAudioRenderer(): void {
-    if(this.audioRenderer) {
+    if (this.audioRenderer) {
       return;
     }
 
@@ -136,21 +329,21 @@ struct Index {
       samplingRate: this.sampleRate,
       channels: audio.AudioChannel.CHANNEL_1,
       sampleFormat: audio.AudioSampleFormat.SAMPLE_FORMAT_S16LE,
-      encodingType: audio.AudioEncodingType.ENCODING_TYPE_RAW,
+      encodingType: audio.AudioEncodingType.ENCODING_TYPE_RAW
     };
 
     const audioRendererInfo: audio.AudioRendererInfo = {
       usage: audio.StreamUsage.STREAM_USAGE_MUSIC,
-      rendererFlags: 0,
+      rendererFlags: 0
     };
 
     const audioRendererOptions: audio.AudioRendererOptions = {
       streamInfo: audioStreamInfo,
-      rendererInfo: audioRendererInfo,
+      rendererInfo: audioRendererInfo
     };
 
     audio.createAudioRenderer(audioRendererOptions, (err, renderer) => {
-      if(!err && renderer) {
+      if (!err && renderer) {
         this.audioRenderer = renderer;
         this.audioRenderer.on('writeData', this.audioPlayCallback);
       } else {
@@ -176,17 +369,15 @@ struct Index {
       this.sampleBuffer.pop(numSamples);
 
       //Update playback for word highlighting
-      if(this.isPlayingAudio && this.totalSamples > 0) {
+      if (this.isPlayingAudio && this.totalSamples > 0) {
         this.playedSamples += numSamples;
         const progress = Math.min(this.playedSamples / this.totalSamples, 1.0);
         const wordIndex = Math.floor(progress * this.words.length) + 1;
-        animateTo({
-          duration: 100,
-          curve: Curve.Linear,
-        }, ()=>{
-          this.audioPlaybackProgress = progress;
-          this.currentWordIndex = Math.min(wordIndex, this.words.length);
-        });
+
+
+        this.audioPlaybackProgress = progress;
+        this.currentWordIndex = Math.min(wordIndex, this.words.length);
+
       }
     } else {
       (new Int16Array(buffer)).fill(0);
@@ -197,287 +388,5 @@ struct Index {
       }
     }
   };
-
-  build() {
-    Column() {
-      if(this.isLoading){
-        this.LoadingView()
-      } else {
-        this.WeatherView()
-      }
-    }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(WeatherColors.BACKGROUND)
-  }
-
-  @Builder
-  LoadingView() {
-    Column({space: WeatherLayout.ITEM_SPACING}){
-      Image($r('app.media.partly_cloudy'))
-        .width(48)
-        .height(48)
-        .fillColor(WeatherColors.TEXT_PRIMARY)
-
-      Text('Loading Weather...')
-        .fontSize(WeatherFonts.BODY)
-        .fontColor(WeatherColors.TEXT_PRIMARY)
-    }
-    .width('100%')
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
-  }
-
-  @Builder
-  WeatherView(){
-    ArcList() {
-      ArcListItem(){
-        this.WeatherAnnouncementCard()
-      }
-      ArcListItem(){
-        this.CurrentWeatherCard()
-      }
-      ArcListItem(){
-        this.DailyForecastCard()
-      }
-    }
-    .space(LengthMetrics.px(8))
-    .focusable(true)
-    .focusOnTouch(true)
-    .defaultFocus(true)
-    .width('100%')
-    .height('100%')
-  }
-
-  @Builder
-  WeatherAnnouncementCard() {
-    Column({space: 12}) {
-      Row({space: 8}) {
-        Image($r('app.media.speak'))
-          .width(20)
-          .height(20)
-          .fillColor(WeatherColors.TEXT_PRIMARY)
-
-        Text('Weather Voice')
-          .fontSize(WeatherFonts.TITLE)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(WeatherColors.TEXT_PRIMARY)
-      }
-      .width('100%')
-      .justifyContent(FlexAlign.Start)
-
-      this.AnimatedTextHighlight()
-    }
-    .width('100%')
-    .padding(WeatherLayout.CARD_PADDING)
-    .backgroundColor(WeatherColors.CARD)
-    .borderRadius(WeatherLayout.BORDER_RADIUS)
-    .alignItems(HorizontalAlign.Start)
-    .justifyContent(FlexAlign.Start)
-  }
-
-  @Builder
-  AnimatedTextHighlight() {
-    if(this.words.length > 0) {
-      Text() {
-        ForEach(this.words, (word: string, index: number)=> {
-          Span(`${word} `)
-            .fontColor(index < this.currentWordIndex ? '#ffffd700' : '#ff808080')
-            .animation({
-              duration: 150,
-              curve: Curve.EaseOut
-            })
-        }, (index:number)=>`word-${index}`)
-      }
-      .fontSize(WeatherFonts.BODY)
-      .textAlign(TextAlign.Start)
-      .width('100%')
-      .lineHeight(20)
-      .maxLines(8)
-      .textOverflow({overflow: TextOverflow.Ellipsis})
-    } else {
-      Text(this.weatherAnnouncement || 'Loading...')
-        .fontSize(WeatherFonts.BODY)
-        .fontColor(WeatherColors.TEXT_SECONDARY)
-        .textAlign(TextAlign.Start)
-        .width('100%')
-        .lineHeight(20)
-        .maxLines(8)
-        .textOverflow({overflow: TextOverflow.Ellipsis})
-    }
-  }
-
-  @Builder
-  CurrentWeatherCard() {
-    Column({space: 8}){
-      Text(`${this.weatherData?.location?.city || 'Unknown'}, ${this.weatherData?.location?.region || 'Unknown'}`)
-        .fontSize(WeatherFonts.CAPTION)
-        .fontColor(WeatherColors.TEXT_SECONDARY)
-        .width('100%')
-        .textAlign(TextAlign.Center)
-        .margin({bottom: 4})
-
-      Text(`${this.weatherData?.current?.temperature || '--'}°C`)
-        .fontSize(WeatherFonts.TEMPERATURE)
-        .fontColor(WeatherColors.TEXT_PRIMARY)
-        .fontWeight(FontWeight.Bold)
-        .textAlign(TextAlign.Center)
-
-      Row({space: 8}) {
-        Image(this.getWeatherIcon(this.weatherData?.current?.condition))
-          .width(20)
-          .height(20)
-          .fillColor(WeatherColors.TEXT_PRIMARY)
-
-        Text(getWeatherConditionDisplayName(this.weatherData?.current?.condition || WeatherCondition.PARTY_CLOUDY))
-          .fontSize(WeatherFonts.TITLE)
-          .fontColor(WeatherColors.TEXT_SECONDARY)
-      }
-      .justifyContent(FlexAlign.Center)
-
-      if(this.weatherData?.current?.feelsLike &&
-      Math.abs(this.weatherData?.current?.temperature - this.weatherData?.current?.feelsLike) > 2) {
-        Text(`Feels like ${this.weatherData?.current?.feelsLike}°C`)
-          .fontSize(WeatherFonts.CAPTION)
-          .fontColor(WeatherColors.TEXT_SECONDARY)
-      }
-
-      Row({space: 16}) {
-        Column({space: 4}) {
-          Image($r('app.media.humidity'))
-            .width(16)
-            .height(16)
-            .fillColor(WeatherColors.TEXT_PRIMARY)
-
-          Text(`${this.weatherData?.current?.humidity || 0}%`)
-            .fontSize(WeatherFonts.CAPTION)
-            .fontColor(WeatherColors.TEXT_SECONDARY)
-        }
-        .margin({right: 8})
-
-        Column({space: 4}) {
-          Image($r('app.media.wind'))
-            .width(16)
-            .height(16)
-            .fillColor(WeatherColors.TEXT_PRIMARY)
-
-          Text(`${this.weatherData?.current?.windSpeed || 0} km/h`)
-            .fontSize(WeatherFonts.CAPTION)
-            .fontColor(WeatherColors.TEXT_SECONDARY)
-        }
-        .margin({right: 8})
-
-        Column({space: 4}) {
-          Image($r('app.media.uv_index'))
-            .width(16)
-            .height(16)
-            .fillColor(WeatherColors.TEXT_PRIMARY)
-
-          Text(`${this.weatherData?.current?.uvIndex || 0}`)
-            .fontSize(WeatherFonts.CAPTION)
-            .fontColor(WeatherColors.TEXT_SECONDARY)
-        }
-      }
-      .justifyContent(FlexAlign.SpaceEvenly)
-      .margin({top: 12})
-    }
-    .width('100%')
-    .padding(WeatherLayout.CARD_PADDING)
-    .backgroundColor(WeatherColors.CARD)
-    .borderRadius(WeatherLayout.BORDER_RADIUS)
-    .justifyContent(FlexAlign.Center)
-  }
-
-  @Builder
-  DailyForecastCard() {
-    Column({space: 12}) {
-      Text('7-Day Forecast')
-        .fontSize(WeatherFonts.TITLE)
-        .fontColor(WeatherColors.TEXT_PRIMARY)
-        .fontWeight(FontWeight.Medium)
-        .width('100%')
-        .textAlign(TextAlign.Start)
-
-      Column({space: 8}) {
-        ForEach(this.weatherData?.forecast.slice(0,5) || [], (day: DailyForecast, index: number) =>{
-          this.ForecastDayItem(day,index)
-        }, (index:number)=>`word-${index}`)
-      }
-    }
-    .width('100%')
-    .padding(WeatherLayout.CARD_PADDING)
-    .backgroundColor(WeatherColors.CARD)
-    .borderRadius(WeatherLayout.BORDER_RADIUS)
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  @Builder
-  ForecastDayItem(day: DailyForecast, index: number) {
-    Row(){
-      Text(this.formatForecastDay(day.date, index))
-        .fontSize(WeatherFonts.BODY)
-        .fontColor(WeatherColors.TEXT_SECONDARY)
-        .width(60)
-
-      Image(this.getWeatherIcon(day.condition))
-        .width(16)
-        .height(16)
-        .fillColor(WeatherColors.TEXT_PRIMARY)
-
-
-      Text(getWeatherConditionDisplayName(day.condition))
-        .fontSize(WeatherFonts.CAPTION)
-        .fontColor(WeatherColors.TEXT_SECONDARY)
-        .layoutWeight(1)
-
-      Row({space: 8}){
-        Text(`${day.high}°`)
-          .fontSize(WeatherFonts.CAPTION)
-          .fontColor(WeatherColors.TEXT_PRIMARY)
-          .fontWeight(FontWeight.Medium)
-
-        Text(`${day.low}°`)
-          .fontSize(WeatherFonts.CAPTION)
-          .fontColor(WeatherColors.TEXT_SECONDARY)
-      }
-    }
-    .width('100%')
-    .height(24)
-    .justifyContent(FlexAlign.SpaceBetween)
-  }
-
-
-  private getWeatherIcon(condition?: WeatherCondition): Resource {
-    switch (condition) {
-      case WeatherCondition.SUNNY:
-        return $r('app.media.sunny');
-      case WeatherCondition.PARTY_CLOUDY:
-        return $r('app.media.partly_cloudy');
-      case WeatherCondition.CLOUDY:
-        return $r('app.media.cloudy');
-      case WeatherCondition.RAINY:
-        return $r('app.media.rainy');
-      case WeatherCondition.STORMY:
-        return $r('app.media.stormy');
-      case WeatherCondition.SNOWY:
-        return $r('app.media.snowy');
-      case WeatherCondition.FOGGY:
-        return $r('app.media.foggy');
-      default:
-        return $r('app.media.partly_cloudy');
-    }
-  }
-
-  private formatForecastDay(date: string, index: number) {
-    if(index === 0) {
-      return 'Today';
-    }
-    if(index === 1) {
-      return 'Tomorrow';
-    }
-    const dateObj = new Date(date);
-    const days = ['Sun', 'Mon', 'Tue', 'Web', 'Thu', 'Fri', 'Sat'];
-    return days[dateObj.getDay()];
-  }
 
 }

@@ -6,7 +6,7 @@ export enum WeatherCondition {
   STORMY = 'stormy',
   SNOWY = 'snowy',
   FOGGY = 'foggy',
-  WINDY = 'windy',
+  WINDY = 'windy'
 }
 
 export function getWeatherConditionDisplayName(condition: WeatherCondition): string {

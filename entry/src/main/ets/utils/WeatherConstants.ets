@@ -25,26 +25,26 @@ export class WeatherConstants {
       {condition: WeatherCondition.SNOWY, probability:0.3} as WeatherConditionProbability,
       {condition: WeatherCondition.CLOUDY, probability:0.4} as WeatherConditionProbability,
       {condition: WeatherCondition.PARTY_CLOUDY, probability:0.2} as WeatherConditionProbability,
-      {condition: WeatherCondition.SUNNY, probability:0.1} as WeatherConditionProbability,
+      {condition: WeatherCondition.SUNNY, probability:0.1} as WeatherConditionProbability
     ],
     spring: [
       {condition: WeatherCondition.RAINY, probability:0.3} as WeatherConditionProbability,
       {condition: WeatherCondition.PARTY_CLOUDY, probability:0.3} as WeatherConditionProbability,
       {condition: WeatherCondition.CLOUDY, probability:0.2} as WeatherConditionProbability,
-      {condition: WeatherCondition.SUNNY, probability:0.2} as WeatherConditionProbability,
+      {condition: WeatherCondition.SUNNY, probability:0.2} as WeatherConditionProbability
     ],
     summer: [
       {condition: WeatherCondition.SUNNY, probability:0.5} as WeatherConditionProbability,
       {condition: WeatherCondition.PARTY_CLOUDY, probability:0.3} as WeatherConditionProbability,
       {condition: WeatherCondition.STORMY, probability:0.1} as WeatherConditionProbability,
-      {condition: WeatherCondition.CLOUDY, probability:0.1} as WeatherConditionProbability,
+      {condition: WeatherCondition.CLOUDY, probability:0.1} as WeatherConditionProbability
     ],
     fall: [
       {condition: WeatherCondition.CLOUDY, probability:0.3} as WeatherConditionProbability,
       {condition: WeatherCondition.PARTY_CLOUDY, probability:0.3} as WeatherConditionProbability,
       {condition: WeatherCondition.RAINY, probability:0.2} as WeatherConditionProbability,
-      {condition: WeatherCondition.SUNNY, probability:0.2} as WeatherConditionProbability,
-    ],
+      {condition: WeatherCondition.SUNNY, probability:0.2} as WeatherConditionProbability
+    ]
   };
 
   static readonly MOCK_LOCATIONS: LocationInfo[] = [
@@ -54,7 +54,7 @@ export class WeatherConstants {
     {city: 'Beijing', region: 'Beijing', country: 'China'} as LocationInfo,
     {city: 'Shanghai', region: 'Shanghai', country: 'China'} as LocationInfo,
     {city: 'Guangzhou', region: 'Guangdong', country: 'China'} as LocationInfo,
-    {city: 'Shenzhen', region: 'Guangdong', country: 'China'} as LocationInfo,
+    {city: 'Shenzhen', region: 'Guangdong', country: 'China'} as LocationInfo
   ];
 
   static readonly PREF_NAME = 'weather_data';
@@ -96,5 +96,38 @@ export class WeatherUtils {
   static getTimeOfDay(): number {
     const date = new Date();
     return date.getHours() + date.getMinutes() / 60;
+  }
+
+  static getWeatherIcon(condition?: WeatherCondition): Resource {
+    switch (condition) {
+      case WeatherCondition.SUNNY:
+        return $r('app.media.sunny');
+      case WeatherCondition.PARTY_CLOUDY:
+        return $r('app.media.partly_cloudy');
+      case WeatherCondition.CLOUDY:
+        return $r('app.media.cloudy');
+      case WeatherCondition.RAINY:
+        return $r('app.media.rainy');
+      case WeatherCondition.STORMY:
+        return $r('app.media.stormy');
+      case WeatherCondition.SNOWY:
+        return $r('app.media.snowy');
+      case WeatherCondition.FOGGY:
+        return $r('app.media.foggy');
+      default:
+        return $r('app.media.partly_cloudy');
+    }
+  }
+
+  static formatForecastDay(date: string, index: number) {
+    if (index === 0) {
+      return 'Today';
+    }
+    if (index === 1) {
+      return 'Tomorrow';
+    }
+    const dateObj = new Date(date);
+    const days = ['Sun', 'Mon', 'Tue', 'Web', 'Thu', 'Fri', 'Sat'];
+    return days[dateObj.getDay()];
   }
 }

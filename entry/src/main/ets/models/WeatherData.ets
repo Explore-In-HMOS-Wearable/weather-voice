@@ -36,20 +36,6 @@ export interface LocationInfo {
   region: string;
   country?: string;
 }
-//
-// export interface ClothingSuggestion {
-//   mainText: string;
-//   items: string[];
-//   accessories: string[];
-//   priority: SuggestionPriority;
-//   reasoning: string;
-// }
-//
-// export enum SuggestionPriority {
-//   LOW = 'low',
-//   NORMAL = 'normal',
-//   HIGH = 'high',
-// }
 
 export class WeatherDataValidator {
   static isValidTemperature(temp: number): boolean {

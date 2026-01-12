@@ -28,7 +28,7 @@ export class WeatherTextSpeechService {
       fullAnnouncement: this.announcementEngine.generateAnnouncement(weatherData),
       quickSummary: this.announcementEngine.generateQuickSummary(weatherData),
       currentConditions: this.announcementEngine.generateCurrentConditions(weatherData.current),
-      forecastAnnouncement: this.announcementEngine.generateForecastAnnouncement(weatherData),
+      forecastAnnouncement: this.announcementEngine.generateForecastAnnouncement(weatherData)
     };
   }
 

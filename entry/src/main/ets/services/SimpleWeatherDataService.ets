@@ -55,7 +55,7 @@ export class SimpleWeatherDataService {
       current,
       forecast,
       location: this.currentLocation,
-      lastUpdated: Date.now(),
+      lastUpdated: Date.now()
     }
   }
 
@@ -86,7 +86,7 @@ export class SimpleWeatherDataService {
       humidity,
       feelsLike,
       windSpeed,
-      uvIndex,
+      uvIndex
     };
   }
 
@@ -110,14 +110,15 @@ export class SimpleWeatherDataService {
     for (let i = 0; i < seasonalConditions.length; i++) {
       const newCondition: WeatherConditionProbability = {
         condition: seasonalConditions[i].condition,
-        probability: seasonalConditions[i].probability,
+        probability: seasonalConditions[i].probability
       };
       adjustedConditions.push(newCondition);
     }
 
     if (temperature > 29) {
       for (let i = 0; i < adjustedConditions.length; i++) {
-        if (adjustedConditions[i].condition === WeatherCondition.SUNNY) {
+        const currentCondition = adjustedConditions[i].condition;
+        if (currentCondition === WeatherCondition.SUNNY) {
           adjustedConditions[i].probability *= 2;
         } else {
           adjustedConditions[i].probability *= 0.5;
@@ -127,8 +128,9 @@ export class SimpleWeatherDataService {
 
     if (temperature < 2) {
       for (let i = 0; i < adjustedConditions.length; i++) {
-        if (adjustedConditions[i].condition === WeatherCondition.SNOWY ||
-          adjustedConditions[i].condition === WeatherCondition.CLOUDY) {
+        const currentCondition = adjustedConditions[i].condition;
+        if (currentCondition === WeatherCondition.SNOWY ||
+          currentCondition === WeatherCondition.CLOUDY) {
           adjustedConditions[i].probability *= 1.5;
         } else {
           adjustedConditions[i].probability *= 0.7;
@@ -231,7 +233,7 @@ export class SimpleWeatherDataService {
         high: dayHigh,
         low: dayLow,
         condition,
-        precipitationChance: precipitationChance,
+        precipitationChance: precipitationChance
       };
       forecast.push(dailyForecast);
     }

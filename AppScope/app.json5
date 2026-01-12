@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "com.hmosdemos.weathervoice",
+    "bundleName": "com.hmosdemos.wearable.weather_voice",
     "vendor": "hmosdemos",
     "versionCode": 1000000,
     "versionName": "1.0.0",

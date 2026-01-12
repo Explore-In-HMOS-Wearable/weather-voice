@@ -1,1 +1,0 @@
-export {WeatherColors, WeatherFonts, WeatherLayout} from './src/main/ets/constants/UIConstants';
